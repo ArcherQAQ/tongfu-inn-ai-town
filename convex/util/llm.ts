@@ -3,8 +3,9 @@
 const OPENAI_EMBEDDING_DIMENSION = 1536;
 const TOGETHER_EMBEDDING_DIMENSION = 768;
 const OLLAMA_EMBEDDING_DIMENSION = 1024;
+const DEEPSEEK_EMBEDDING_DIMENSION = 1024; // DeepSeek compatible
 
-export const EMBEDDING_DIMENSION: number = OLLAMA_EMBEDDING_DIMENSION;
+export const EMBEDDING_DIMENSION: number = DEEPSEEK_EMBEDDING_DIMENSION;
 
 export function detectMismatchedLLMProvider() {
   switch (EMBEDDING_DIMENSION) {
@@ -22,6 +23,13 @@ export function detectMismatchedLLMProvider() {
         );
       }
       break;
+    case DEEPSEEK_EMBEDDING_DIMENSION:
+      if (!process.env.DEEPSEEK_API_KEY) {
+        throw new Error(
+          "Are you trying to use DeepSeek? If so, run: npx convex env set DEEPSEEK_API_KEY 'your-key'",
+        );
+      }
+      break;
     case OLLAMA_EMBEDDING_DIMENSION:
       break;
     default:
@@ -35,7 +43,7 @@ export function detectMismatchedLLMProvider() {
 }
 
 export interface LLMConfig {
-  provider: 'openai' | 'together' | 'ollama' | 'custom';
+  provider: 'openai' | 'together' | 'deepseek' | 'ollama' | 'custom';
   url: string; // Should not have a trailing slash
   chatModel: string;
   embeddingModel: string;
@@ -70,6 +78,20 @@ export function getLLMConfig(): LLMConfig {
         process.env.TOGETHER_EMBEDDING_MODEL ?? 'togethercomputer/m2-bert-80M-8k-retrieval',
       stopWords: ['<|eot_id|>'],
       apiKey: process.env.TOGETHER_API_KEY,
+    };
+  }
+  // 🏮 DeepSeek — cheap, fast, Chinese-friendly
+  if (process.env.DEEPSEEK_API_KEY) {
+    if (EMBEDDING_DIMENSION !== DEEPSEEK_EMBEDDING_DIMENSION) {
+      throw new Error('EMBEDDING_DIMENSION must be 1024 for DeepSeek');
+    }
+    return {
+      provider: 'deepseek',
+      url: 'https://api.deepseek.com',
+      chatModel: process.env.DEEPSEEK_CHAT_MODEL ?? 'deepseek-chat',
+      embeddingModel: process.env.DEEPSEEK_EMBEDDING_MODEL ?? 'deepseek-chat',
+      stopWords: [],
+      apiKey: process.env.DEEPSEEK_API_KEY,
     };
   }
   if (process.env.LLM_API_URL) {
